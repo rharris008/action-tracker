@@ -7,72 +7,238 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Arial,sans-serif;background:#f0f2f5;color:#333}
-.header{background:#1B2A4A;color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:fixed;top:0;left:0;right:0;z-index:100;height:56px}
-.header h1{font-size:18px;font-weight:bold}
-.header .subtitle{font-size:12px;color:#8899bb;margin-left:12px}
+body{font-family:Arial,sans-serif;background:#f0f2f5;color:#333;min-height:100vh;position:relative}
+
+/* Transparent ABH watermark */
+body::before{
+  content:'';
+  position:fixed;
+  top:50%;left:50%;
+  width:500px;height:500px;
+  transform:translate(-50%,-50%);
+  background:url('abh-logo.png') no-repeat center center;
+  background-size:contain;
+  opacity:0.06;
+  pointer-events:none;
+  z-index:0;
+}
+
+.header{
+  background:linear-gradient(135deg,#1B2A4A 0%,#243a64 100%);
+  color:#fff;
+  padding:0 28px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  position:fixed;top:0;left:0;right:0;
+  z-index:100;
+  height:60px;
+  box-shadow:0 2px 12px rgba(27,42,74,0.3);
+}
+.header-left{display:flex;align-items:center;gap:16px}
+.header-logo{height:36px;width:auto;border-radius:4px}
+.header h1{font-size:18px;font-weight:bold;letter-spacing:0.3px}
+.header .subtitle{font-size:11px;color:#8899bb;margin-top:2px}
 .header-right{display:flex;align-items:center;gap:16px}
-.person-select{padding:6px 12px;border-radius:4px;border:1px solid #445;background:#243656;color:#fff;font-family:Arial;font-size:13px}
+.person-select{
+  padding:8px 14px;
+  border-radius:6px;
+  border:1px solid rgba(255,255,255,0.2);
+  background:rgba(255,255,255,0.1);
+  color:#fff;
+  font-family:Arial;
+  font-size:13px;
+  cursor:pointer;
+  backdrop-filter:blur(4px);
+}
+.person-select:focus{outline:2px solid #0E7CCE;outline-offset:2px}
 .person-select option{background:#1B2A4A;color:#fff}
-.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:bold;color:#fff}
+
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:bold;color:#fff;letter-spacing:0.3px}
 .badge-open{background:#E67E22}
 .badge-done{background:#27AE60}
 .badge-blocked{background:#C0392B}
-.badge-overdue{background:#C0392B}
-.container{max-width:960px;margin:72px auto 40px;padding:16px}
-.stats{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
-.stat-card{flex:1;min-width:120px;background:#fff;border-radius:8px;padding:16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.1)}
-.stat-card .num{font-size:28px;font-weight:bold}
-.stat-card .label{font-size:11px;color:#888;text-transform:uppercase;margin-top:4px}
+.badge-overdue{background:#C0392B;animation:pulse 2s infinite}
+
+@keyframes pulse{
+  0%,100%{opacity:1}
+  50%{opacity:0.7}
+}
+
+.container{max-width:1000px;margin:80px auto 80px;padding:20px;position:relative;z-index:1}
+
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:28px}
+.stat-card{
+  background:#fff;
+  border-radius:10px;
+  padding:20px 16px;
+  text-align:center;
+  box-shadow:0 2px 8px rgba(0,0,0,0.06);
+  border-top:3px solid #1B2A4A;
+  transition:transform 0.15s,box-shadow 0.15s;
+}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,0.1)}
+.stat-card .num{font-size:32px;font-weight:bold}
+.stat-card .label{font-size:10px;color:#888;text-transform:uppercase;margin-top:6px;letter-spacing:0.5px}
+.stat-open{border-top-color:#E67E22}
 .stat-open .num{color:#E67E22}
+.stat-done{border-top-color:#27AE60}
 .stat-done .num{color:#27AE60}
+.stat-blocked{border-top-color:#C0392B}
 .stat-blocked .num{color:#C0392B}
+.stat-overdue{border-top-color:#C0392B}
 .stat-overdue .num{color:#C0392B}
 .stat-total .num{color:#1B2A4A}
-.action-list{display:flex;flex-direction:column;gap:10px}
-.action-card{background:#fff;border-radius:8px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,.08);border-left:4px solid #E67E22;transition:all .2s}
-.action-card.done{border-left-color:#27AE60;opacity:.7}
+
+.action-list{display:flex;flex-direction:column;gap:12px}
+
+.action-card{
+  background:#fff;
+  border-radius:10px;
+  padding:18px 22px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.05);
+  border-left:5px solid #E67E22;
+  transition:all .2s;
+  position:relative;
+}
+.action-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.1);transform:translateX(2px)}
+.action-card.done{border-left-color:#27AE60;opacity:.65}
+.action-card.done:hover{opacity:.85}
 .action-card.blocked{border-left-color:#C0392B}
-.action-card.overdue{border-left-color:#C0392B}
-.action-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-.action-num{font-size:13px;font-weight:bold;color:#1B2A4A;min-width:24px}
-.action-desc{flex:1;font-size:14px;line-height:1.4}
-.action-meta{font-size:11px;color:#888;margin-top:6px}
-.action-controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
-.action-controls label{font-size:11px;color:#666;font-weight:bold;text-transform:uppercase}
-.action-controls select,.action-controls input{font-family:Arial;font-size:13px;padding:5px 8px;border:1px solid #ccc;border-radius:4px}
-.action-controls select{min-width:100px}
-.action-controls input[type=date]{width:140px}
-.comment-row{margin-top:8px;display:flex;gap:8px;align-items:center}
-.comment-row input{flex:1;font-family:Arial;font-size:13px;padding:6px 10px;border:1px solid #ccc;border-radius:4px}
-.btn{padding:6px 14px;border:none;border-radius:4px;font-family:Arial;font-size:12px;font-weight:bold;cursor:pointer;transition:background .2s}
-.btn-save{background:#27AE60;color:#fff}
-.btn-save:hover{background:#219a52}
-.btn-save:disabled{background:#aaa;cursor:default}
-.save-bar{position:fixed;bottom:0;left:0;right:0;background:#1B2A4A;color:#fff;padding:10px 24px;display:flex;justify-content:space-between;align-items:center;z-index:100}
-.save-bar .sync-status{font-size:12px}
+.action-card.overdue{border-left-color:#C0392B;background:#fff8f6}
+
+.action-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.action-num{
+  font-size:12px;
+  font-weight:bold;
+  color:#fff;
+  background:#1B2A4A;
+  border-radius:50%;
+  width:28px;height:28px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+  margin-top:2px;
+}
+.action-ref{font-size:11px;color:#0E7CCE;font-weight:bold;margin-bottom:4px;letter-spacing:0.3px}
+.action-desc{font-size:14px;line-height:1.5;color:#333}
+.action-meta{font-size:11px;color:#999;margin-top:6px;display:flex;gap:16px;flex-wrap:wrap}
+.action-meta span{display:inline-flex;align-items:center;gap:4px}
+
+.action-controls{
+  display:flex;
+  gap:10px;
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid #f0f0f0;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.action-controls label{font-size:10px;color:#888;font-weight:bold;text-transform:uppercase;letter-spacing:0.4px}
+.control-group{display:flex;flex-direction:column;gap:4px}
+.action-controls select,.action-controls input{
+  font-family:Arial;font-size:13px;
+  padding:6px 10px;
+  border:1px solid #ddd;
+  border-radius:6px;
+  background:#fafafa;
+  transition:border-color 0.2s;
+}
+.action-controls select:focus,.action-controls input:focus{border-color:#0E7CCE;outline:none;background:#fff}
+.action-controls select{min-width:110px}
+.action-controls input[type=date]{width:145px}
+
+.comment-row{margin-top:10px;display:flex;gap:8px;align-items:center}
+.comment-row input{
+  flex:1;font-family:Arial;font-size:13px;
+  padding:8px 12px;
+  border:1px solid #ddd;
+  border-radius:6px;
+  background:#fafafa;
+  transition:border-color 0.2s;
+}
+.comment-row input:focus{border-color:#0E7CCE;outline:none;background:#fff}
+.comment-row input::placeholder{color:#bbb}
+
+.btn{padding:8px 18px;border:none;border-radius:6px;font-family:Arial;font-size:13px;font-weight:bold;cursor:pointer;transition:all .2s;letter-spacing:0.3px}
+.btn-save{background:#27AE60;color:#fff;box-shadow:0 2px 6px rgba(39,174,96,0.3)}
+.btn-save:hover{background:#219a52;box-shadow:0 4px 12px rgba(39,174,96,0.4)}
+.btn-save:disabled{background:#ccc;box-shadow:none;cursor:default}
+
+.save-bar{
+  position:fixed;bottom:0;left:0;right:0;
+  background:linear-gradient(135deg,#1B2A4A 0%,#243a64 100%);
+  color:#fff;
+  padding:12px 28px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  z-index:100;
+  box-shadow:0 -2px 12px rgba(27,42,74,0.2);
+}
+.save-bar .sync-status{font-size:12px;letter-spacing:0.3px}
 .save-bar .sync-ok{color:#27AE60}
 .save-bar .sync-dirty{color:#E67E22}
 .save-bar .sync-err{color:#C0392B}
-.empty-state{text-align:center;padding:60px 20px;color:#888}
-.empty-state h2{font-size:18px;margin-bottom:8px;color:#1B2A4A}
-.rob-view{margin-top:24px}
-.rob-section{margin-bottom:24px}
-.rob-section h2{font-size:15px;font-weight:bold;color:#1B2A4A;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #1B2A4A}
-.person-group h3{font-size:13px;color:#1B2A4A;margin:12px 0 8px;padding:6px 12px;background:#eef1f5;border-radius:4px}
-@media(max-width:600px){
-  .stats{flex-direction:column}
-  .action-controls{flex-direction:column;align-items:flex-start}
+
+.empty-state{text-align:center;padding:80px 20px;color:#888}
+.empty-state h2{font-size:20px;margin-bottom:10px;color:#1B2A4A}
+.empty-state p{font-size:14px;line-height:1.6}
+
+.rob-view{margin-top:8px}
+.rob-section{margin-bottom:28px}
+.rob-section-header{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 16px;
+  background:linear-gradient(135deg,#1B2A4A 0%,#2a3f6a 100%);
+  border-radius:8px;
+  margin-bottom:14px;
+}
+.rob-section-header h2{font-size:14px;font-weight:bold;color:#fff;flex:1}
+.rob-section-header .badge{font-size:10px}
+
+.person-group h3{font-size:13px;color:#1B2A4A;margin:12px 0 8px;padding:6px 12px;background:#eef1f5;border-radius:6px}
+
+.loading-spinner{
+  display:flex;align-items:center;justify-content:center;
+  padding:80px 20px;
+  color:#888;font-size:14px;
+}
+.loading-spinner::before{
+  content:'';
+  width:24px;height:24px;
+  border:3px solid #ddd;
+  border-top-color:#0E7CCE;
+  border-radius:50%;
+  animation:spin 0.8s linear infinite;
+  margin-right:12px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:768px){
+  .stats{grid-template-columns:repeat(3,1fr)}
+  .container{padding:12px}
+}
+@media(max-width:500px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .action-controls{flex-direction:column;align-items:stretch}
+  .control-group{flex-direction:row;align-items:center;gap:8px}
   .header h1{font-size:15px}
   .header .subtitle{display:none}
+  .header-logo{height:28px}
+  body::before{width:300px;height:300px}
 }
 </style>
 </head>
 <body>
 <div class="header">
-  <div style="display:flex;align-items:center">
-    <h1>ABH Action Tracker</h1>
-    <span class="subtitle">Part of the Mann &amp; Noble Group</span>
+  <div class="header-left">
+    <img src="abh-logo.png" alt="ABH" class="header-logo">
+    <div>
+      <h1>Action Tracker</h1>
+      <div class="subtitle">Part of the Mann &amp; Noble Group</div>
+    </div>
   </div>
   <div class="header-right">
     <select class="person-select" id="personFilter" onchange="filterPerson()">
@@ -83,7 +249,9 @@ body{font-family:Arial,sans-serif;background:#f0f2f5;color:#333}
 
 <div class="container" id="app">
   <div class="stats" id="statsBar"></div>
-  <div class="action-list" id="actionList"></div>
+  <div class="action-list" id="actionList">
+    <div class="loading-spinner">Loading actions...</div>
+  </div>
 </div>
 
 <div class="save-bar">
@@ -100,7 +268,6 @@ let actions=[];
 let dirty=new Set();
 let currentPerson='__ALL__';
 
-// URL param for direct person link
 const urlParams=new URLSearchParams(window.location.search);
 const paramPerson=urlParams.get('person');
 
@@ -119,6 +286,7 @@ async function loadAll(){
   }catch(e){
     console.error(e);
     setSync('err','Failed to load: '+e.message);
+    document.getElementById('actionList').innerHTML='<div class="empty-state"><h2>Connection error</h2><p>'+e.message+'</p></div>';
   }
 }
 
@@ -135,7 +303,6 @@ function buildPersonFilter(){
 
 function filterPerson(){
   currentPerson=document.getElementById('personFilter').value;
-  // Update URL without reload
   const url=new URL(window.location);
   if(currentPerson==='__ALL__')url.searchParams.delete('person');
   else url.searchParams.set('person',currentPerson);
@@ -167,12 +334,13 @@ function isOverdue(a){return a.status==='open'&&a.target_date&&new Date(a.target
 
 function renderPersonView(list){
   const el=document.getElementById('actionList');
-  if(!list.length){el.innerHTML='<div class="empty-state"><h2>No actions</h2><p>Nothing assigned to this person yet.</p></div>';return;}
-  el.innerHTML=list.map((a,i)=>actionCard(a)).join('');
+  if(!list.length){el.innerHTML='<div class="empty-state"><h2>No actions</h2><p>Nothing assigned to this person.</p></div>';return;}
+  el.innerHTML=list.map(a=>actionCard(a)).join('');
 }
 
 function renderRobView(list){
   const el=document.getElementById('actionList');
+  if(!list.length){el.innerHTML='<div class="empty-state"><h2>No actions loaded</h2><p>Check that the Supabase action_tracker table has data.</p></div>';return;}
   const byPerson={};
   list.forEach(a=>{if(!byPerson[a.person])byPerson[a.person]=[];byPerson[a.person].push(a);});
   let html='<div class="rob-view">';
@@ -180,7 +348,12 @@ function renderRobView(list){
     const items=byPerson[p];
     const open=items.filter(x=>x.status==='open').length;
     const overdue=items.filter(x=>isOverdue(x)).length;
-    html+=`<div class="rob-section"><h2>${p} <span class="badge badge-open">${open} open</span> ${overdue?'<span class="badge badge-overdue">'+overdue+' overdue</span>':''}</h2>`;
+    html+=`<div class="rob-section">
+      <div class="rob-section-header">
+        <h2>${p}</h2>
+        <span class="badge badge-open">${open} open</span>
+        ${overdue?'<span class="badge badge-overdue">'+overdue+' overdue</span>':''}
+      </div>`;
     html+=items.map(a=>actionCard(a)).join('');
     html+='</div>';
   });
@@ -193,20 +366,30 @@ function actionCard(a){
   const cls=a.status+(od?' overdue':'');
   const targetVal=a.target_date||'';
   const statusOpts=['open','done','blocked'].map(s=>`<option value="${s}"${a.status===s?' selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
+  const refCode=a.action_ref||('ACT-'+a.sort_order);
   return `<div class="action-card ${cls}" id="card-${a.id}">
     <div class="action-top">
-      <span class="action-num">${a.sort_order}.</span>
+      <span class="action-num">${a.sort_order}</span>
       <div style="flex:1">
+        <div class="action-ref">${refCode}</div>
         <div class="action-desc">${a.description}</div>
-        <div class="action-meta">Source: ${a.source_meeting||'—'} &nbsp;|&nbsp; Raised: ${fmtDate(a.date_raised)}</div>
+        <div class="action-meta">
+          <span>Source: ${a.source_meeting||'\u2014'}</span>
+          <span>Raised: ${fmtDate(a.date_raised)}</span>
+          ${a.target_date?'<span>Due: '+fmtDate(a.target_date)+'</span>':''}
+        </div>
       </div>
-      <span class="badge badge-${a.status}">${a.status.toUpperCase()}</span>
+      <span class="badge badge-${od?'overdue':a.status}">${od?'OVERDUE':a.status.toUpperCase()}</span>
     </div>
     <div class="action-controls">
-      <label>Status</label>
-      <select onchange="updateField('${a.id}','status',this.value)">${statusOpts}</select>
-      <label style="margin-left:12px">Target Date</label>
-      <input type="date" value="${targetVal}" onchange="updateField('${a.id}','target_date',this.value)">
+      <div class="control-group">
+        <label>Status</label>
+        <select onchange="updateField('${a.id}','status',this.value)">${statusOpts}</select>
+      </div>
+      <div class="control-group">
+        <label>Target Date</label>
+        <input type="date" value="${targetVal}" onchange="updateField('${a.id}','target_date',this.value)">
+      </div>
     </div>
     <div class="comment-row">
       <input type="text" placeholder="Add a comment or update..." value="${a.comment||''}" onchange="updateField('${a.id}','comment',this.value)">
@@ -214,7 +397,7 @@ function actionCard(a){
   </div>`;
 }
 
-function fmtDate(d){if(!d)return '—';const dt=new Date(d);return dt.toLocaleDateString('en-AU',{day:'2-digit',month:'2-digit',year:'numeric'})}
+function fmtDate(d){if(!d)return '\u2014';const dt=new Date(d);return dt.toLocaleDateString('en-AU',{day:'2-digit',month:'2-digit',year:'numeric'})}
 
 function updateField(id,field,val){
   const a=actions.find(x=>x.id===id);
@@ -226,7 +409,6 @@ function updateField(id,field,val){
   dirty.add(id);
   document.getElementById('saveBtn').disabled=false;
   setSync('dirty',dirty.size+' unsaved change'+(dirty.size>1?'s':''));
-  // Re-render card in place
   const card=document.getElementById('card-'+id);
   if(card){const tmp=document.createElement('div');tmp.innerHTML=actionCard(a);card.replaceWith(tmp.firstElementChild);}
   renderStats(currentPerson==='__ALL__'?actions:actions.filter(x=>x.person===currentPerson));
