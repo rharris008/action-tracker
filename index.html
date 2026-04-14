@@ -21,7 +21,9 @@ body{font-family:Arial,sans-serif;background:#f0f2f5;color:#333}
 .badge-overdue{background:#C0392B}
 .container{max-width:960px;margin:72px auto 40px;padding:16px}
 .stats{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
-.stat-card{flex:1;min-width:120px;background:#fff;border-radius:8px;padding:16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.stat-card{flex:1;min-width:120px;background:#fff;border-radius:8px;padding:16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.1);cursor:pointer;transition:transform .15s,box-shadow .15s}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.stat-card.active-filter{outline:3px solid #0E7CCE;outline-offset:-3px}
 .stat-card .num{font-size:28px;font-weight:bold}
 .stat-card .label{font-size:11px;color:#888;text-transform:uppercase;margin-top:4px}
 .stat-open .num{color:#E67E22}
@@ -30,7 +32,11 @@ body{font-family:Arial,sans-serif;background:#f0f2f5;color:#333}
 .stat-overdue .num{color:#C0392B}
 .stat-total .num{color:#1B2A4A}
 .action-list{display:flex;flex-direction:column;gap:10px}
-.action-card{background:#fff;border-radius:8px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,.08);border-left:4px solid #E67E22;transition:all .2s}
+.action-card{background:#fff;border-radius:8px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,.08);border-left:4px solid #E67E22;transition:all .2s;cursor:pointer}
+.action-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.12);transform:translateY(-1px)}
+.action-card .action-detail{max-height:0;overflow:hidden;transition:max-height .3s ease}
+.action-card.expanded .action-detail{max-height:300px}
+.action-card.highlight{animation:highlightPulse .8s ease}
 .action-card.done{border-left-color:#27AE60;opacity:.7}
 .action-card.blocked{border-left-color:#C0392B}
 .action-card.overdue{border-left-color:#C0392B}
@@ -60,6 +66,7 @@ body{font-family:Arial,sans-serif;background:#f0f2f5;color:#333}
 .rob-section{margin-bottom:24px}
 .rob-section h2{font-size:15px;font-weight:bold;color:#1B2A4A;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #1B2A4A}
 .person-group h3{font-size:13px;color:#1B2A4A;margin:12px 0 8px;padding:6px 12px;background:#eef1f5;border-radius:4px}
+@keyframes highlightPulse{0%{background:#fff}30%{background:#e8f4fd}100%{background:#fff}}
 @media(max-width:600px){
   .stats{flex-direction:column}
   .action-controls{flex-direction:column;align-items:flex-start}
@@ -143,9 +150,14 @@ function filterPerson(){
   render();
 }
 
+let activeStatusFilter=null;
+
 function render(){
-  const filtered=currentPerson==='__ALL__'?actions:actions.filter(a=>a.person===currentPerson);
-  renderStats(filtered);
+  const byPerson=currentPerson==='__ALL__'?actions:actions.filter(a=>a.person===currentPerson);
+  renderStats(byPerson);
+  let filtered=byPerson;
+  if(activeStatusFilter==='overdue')filtered=byPerson.filter(a=>isOverdue(a));
+  else if(activeStatusFilter)filtered=byPerson.filter(a=>a.status===activeStatusFilter);
   if(currentPerson==='__ALL__')renderRobView(filtered);
   else renderPersonView(filtered);
 }
@@ -155,12 +167,18 @@ function renderStats(list){
   const done=list.filter(a=>a.status==='done').length;
   const blocked=list.filter(a=>a.status==='blocked').length;
   const overdue=list.filter(a=>a.status==='open'&&a.target_date&&new Date(a.target_date)<new Date()).length;
+  const af=activeStatusFilter;
   document.getElementById('statsBar').innerHTML=`
-    <div class="stat-card stat-total"><div class="num">${list.length}</div><div class="label">Total</div></div>
-    <div class="stat-card stat-open"><div class="num">${open}</div><div class="label">Open</div></div>
-    <div class="stat-card stat-done"><div class="num">${done}</div><div class="label">Done</div></div>
-    <div class="stat-card stat-blocked"><div class="num">${blocked}</div><div class="label">Blocked</div></div>
-    <div class="stat-card stat-overdue"><div class="num">${overdue}</div><div class="label">Overdue</div></div>`;
+    <div class="stat-card stat-total${af===null?' active-filter':''}" onclick="filterByStatus(null)"><div class="num">${list.length}</div><div class="label">Total</div></div>
+    <div class="stat-card stat-open${af==='open'?' active-filter':''}" onclick="filterByStatus('open')"><div class="num">${open}</div><div class="label">Open</div></div>
+    <div class="stat-card stat-done${af==='done'?' active-filter':''}" onclick="filterByStatus('done')"><div class="num">${done}</div><div class="label">Done</div></div>
+    <div class="stat-card stat-blocked${af==='blocked'?' active-filter':''}" onclick="filterByStatus('blocked')"><div class="num">${blocked}</div><div class="label">Blocked</div></div>
+    <div class="stat-card stat-overdue${af==='overdue'?' active-filter':''}" onclick="filterByStatus('overdue')"><div class="num">${overdue}</div><div class="label">Overdue</div></div>`;
+}
+
+function filterByStatus(status){
+  activeStatusFilter=(activeStatusFilter===status)?null:status;
+  render();
 }
 
 function isOverdue(a){return a.status==='open'&&a.target_date&&new Date(a.target_date)<new Date()}
@@ -192,26 +210,35 @@ function actionCard(a){
   const od=isOverdue(a);
   const cls=a.status+(od?' overdue':'');
   const targetVal=a.target_date||'';
+  const targetDisp=a.target_date?fmtDate(a.target_date):'No target';
   const statusOpts=['open','done','blocked'].map(s=>`<option value="${s}"${a.status===s?' selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
-  return `<div class="action-card ${cls}" id="card-${a.id}">
+  return `<div class="action-card ${cls}" id="card-${a.id}" onclick="toggleCard(event,'${a.id}')">
     <div class="action-top">
       <span class="action-num">${a.sort_order}.</span>
       <div style="flex:1">
         <div class="action-desc">${a.description}</div>
-        <div class="action-meta">Source: ${a.source_meeting||'—'} &nbsp;|&nbsp; Raised: ${fmtDate(a.date_raised)}</div>
+        <div class="action-meta">Source: ${a.source_meeting||'—'} &nbsp;|&nbsp; Raised: ${fmtDate(a.date_raised)} &nbsp;|&nbsp; Target: ${targetDisp} ${a.comment?'&nbsp;|&nbsp; <em>'+a.comment+'</em>':''}</div>
       </div>
       <span class="badge badge-${a.status}">${a.status.toUpperCase()}</span>
     </div>
-    <div class="action-controls">
-      <label>Status</label>
-      <select onchange="updateField('${a.id}','status',this.value)">${statusOpts}</select>
-      <label style="margin-left:12px">Target Date</label>
-      <input type="date" value="${targetVal}" onchange="updateField('${a.id}','target_date',this.value)">
-    </div>
-    <div class="comment-row">
-      <input type="text" placeholder="Add a comment or update..." value="${a.comment||''}" onchange="updateField('${a.id}','comment',this.value)">
+    <div class="action-detail">
+      <div class="action-controls">
+        <label>Status</label>
+        <select onclick="event.stopPropagation()" onchange="updateField('${a.id}','status',this.value)">${statusOpts}</select>
+        <label style="margin-left:12px">Target Date</label>
+        <input type="date" value="${targetVal}" onclick="event.stopPropagation()" onchange="updateField('${a.id}','target_date',this.value)">
+      </div>
+      <div class="comment-row">
+        <input type="text" placeholder="Add a comment or update..." value="${a.comment||''}" onclick="event.stopPropagation()" onchange="updateField('${a.id}','comment',this.value)">
+      </div>
     </div>
   </div>`;
+}
+
+function toggleCard(event,id){
+  if(event.target.tagName==='SELECT'||event.target.tagName==='INPUT'||event.target.tagName==='OPTION')return;
+  const card=document.getElementById('card-'+id);
+  if(card)card.classList.toggle('expanded');
 }
 
 function fmtDate(d){if(!d)return '—';const dt=new Date(d);return dt.toLocaleDateString('en-AU',{day:'2-digit',month:'2-digit',year:'numeric'})}
