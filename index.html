@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ABH Action Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#f0f2f5;color:#333}
+.header{background:#1B2A4A;color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:fixed;top:0;left:0;right:0;z-index:100;height:56px}
+.header h1{font-size:18px;font-weight:bold}
+.header .subtitle{font-size:12px;color:#8899bb;margin-left:12px}
+.header-right{display:flex;align-items:center;gap:16px}
+.person-select{padding:6px 12px;border-radius:4px;border:1px solid #445;background:#243656;color:#fff;font-family:Arial;font-size:13px}
+.person-select option{background:#1B2A4A;color:#fff}
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:bold;color:#fff}
+.badge-open{background:#E67E22}
+.badge-done{background:#27AE60}
+.badge-blocked{background:#C0392B}
+.badge-overdue{background:#C0392B}
+.container{max-width:960px;margin:72px auto 40px;padding:16px}
+.stats{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.stat-card{flex:1;min-width:120px;background:#fff;border-radius:8px;padding:16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.stat-card .num{font-size:28px;font-weight:bold}
+.stat-card .label{font-size:11px;color:#888;text-transform:uppercase;margin-top:4px}
+.stat-open .num{color:#E67E22}
+.stat-done .num{color:#27AE60}
+.stat-blocked .num{color:#C0392B}
+.stat-overdue .num{color:#C0392B}
+.stat-total .num{color:#1B2A4A}
+.action-list{display:flex;flex-direction:column;gap:10px}
+.action-card{background:#fff;border-radius:8px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,.08);border-left:4px solid #E67E22;transition:all .2s}
+.action-card.done{border-left-color:#27AE60;opacity:.7}
+.action-card.blocked{border-left-color:#C0392B}
+.action-card.overdue{border-left-color:#C0392B}
+.action-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.action-num{font-size:13px;font-weight:bold;color:#1B2A4A;min-width:24px}
+.action-desc{flex:1;font-size:14px;line-height:1.4}
+.action-meta{font-size:11px;color:#888;margin-top:6px}
+.action-controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.action-controls label{font-size:11px;color:#666;font-weight:bold;text-transform:uppercase}
+.action-controls select,.action-controls input{font-family:Arial;font-size:13px;padding:5px 8px;border:1px solid #ccc;border-radius:4px}
+.action-controls select{min-width:100px}
+.action-controls input[type=date]{width:140px}
+.comment-row{margin-top:8px;display:flex;gap:8px;align-items:center}
+.comment-row input{flex:1;font-family:Arial;font-size:13px;padding:6px 10px;border:1px solid #ccc;border-radius:4px}
+.btn{padding:6px 14px;border:none;border-radius:4px;font-family:Arial;font-size:12px;font-weight:bold;cursor:pointer;transition:background .2s}
+.btn-save{background:#27AE60;color:#fff}
+.btn-save:hover{background:#219a52}
+.btn-save:disabled{background:#aaa;cursor:default}
+.save-bar{position:fixed;bottom:0;left:0;right:0;background:#1B2A4A;color:#fff;padding:10px 24px;display:flex;justify-content:space-between;align-items:center;z-index:100}
+.save-bar .sync-status{font-size:12px}
+.save-bar .sync-ok{color:#27AE60}
+.save-bar .sync-dirty{color:#E67E22}
+.save-bar .sync-err{color:#C0392B}
+.empty-state{text-align:center;padding:60px 20px;color:#888}
+.empty-state h2{font-size:18px;margin-bottom:8px;color:#1B2A4A}
+.rob-view{margin-top:24px}
+.rob-section{margin-bottom:24px}
+.rob-section h2{font-size:15px;font-weight:bold;color:#1B2A4A;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #1B2A4A}
+.person-group h3{font-size:13px;color:#1B2A4A;margin:12px 0 8px;padding:6px 12px;background:#eef1f5;border-radius:4px}
+@media(max-width:600px){
+  .stats{flex-direction:column}
+  .action-controls{flex-direction:column;align-items:flex-start}
+  .header h1{font-size:15px}
+  .header .subtitle{display:none}
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <div style="display:flex;align-items:center">
+    <h1>ABH Action Tracker</h1>
+    <span class="subtitle">Part of the Mann &amp; Noble Group</span>
+  </div>
+  <div class="header-right">
+    <select class="person-select" id="personFilter" onchange="filterPerson()">
+      <option value="__ALL__">All Staff (Rob View)</option>
+    </select>
+  </div>
+</div>
+
+<div class="container" id="app">
+  <div class="stats" id="statsBar"></div>
+  <div class="action-list" id="actionList"></div>
+</div>
+
+<div class="save-bar">
+  <span class="sync-status" id="syncStatus">Loading...</span>
+  <button class="btn btn-save" id="saveBtn" onclick="saveAll()" disabled>Save Changes</button>
+</div>
+
+<script>
+const SB_URL='https://gdfbpvzatnqmzujagtqm.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkZmJwdnphdG5xbXp1amFndHFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MzE3NTQsImV4cCI6MjA5MDIwNzc1NH0.O0XquoCFEaIL0xJZKGaPrFgfz42A_j1uKRUjhr6Zqvw';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+
+let actions=[];
+let dirty=new Set();
+let currentPerson='__ALL__';
+
+// URL param for direct person link
+const urlParams=new URLSearchParams(window.location.search);
+const paramPerson=urlParams.get('person');
+
+async function loadAll(){
+  try{
+    const{data,error}=await sb.from('action_tracker').select('*').order('person').order('sort_order');
+    if(error)throw error;
+    actions=data||[];
+    buildPersonFilter();
+    if(paramPerson){
+      currentPerson=paramPerson;
+      document.getElementById('personFilter').value=paramPerson;
+    }
+    render();
+    setSync('ok','All changes saved');
+  }catch(e){
+    console.error(e);
+    setSync('err','Failed to load: '+e.message);
+  }
+}
+
+function buildPersonFilter(){
+  const sel=document.getElementById('personFilter');
+  const people=[...new Set(actions.map(a=>a.person))].sort();
+  sel.innerHTML='<option value="__ALL__">All Staff (Rob View)</option>';
+  people.forEach(p=>{
+    const opt=document.createElement('option');
+    opt.value=p;opt.textContent=p;
+    sel.appendChild(opt);
+  });
+}
+
+function filterPerson(){
+  currentPerson=document.getElementById('personFilter').value;
+  // Update URL without reload
+  const url=new URL(window.location);
+  if(currentPerson==='__ALL__')url.searchParams.delete('person');
+  else url.searchParams.set('person',currentPerson);
+  window.history.replaceState({},'',url);
+  render();
+}
+
+function render(){
+  const filtered=currentPerson==='__ALL__'?actions:actions.filter(a=>a.person===currentPerson);
+  renderStats(filtered);
+  if(currentPerson==='__ALL__')renderRobView(filtered);
+  else renderPersonView(filtered);
+}
+
+function renderStats(list){
+  const open=list.filter(a=>a.status==='open').length;
+  const done=list.filter(a=>a.status==='done').length;
+  const blocked=list.filter(a=>a.status==='blocked').length;
+  const overdue=list.filter(a=>a.status==='open'&&a.target_date&&new Date(a.target_date)<new Date()).length;
+  document.getElementById('statsBar').innerHTML=`
+    <div class="stat-card stat-total"><div class="num">${list.length}</div><div class="label">Total</div></div>
+    <div class="stat-card stat-open"><div class="num">${open}</div><div class="label">Open</div></div>
+    <div class="stat-card stat-done"><div class="num">${done}</div><div class="label">Done</div></div>
+    <div class="stat-card stat-blocked"><div class="num">${blocked}</div><div class="label">Blocked</div></div>
+    <div class="stat-card stat-overdue"><div class="num">${overdue}</div><div class="label">Overdue</div></div>`;
+}
+
+function isOverdue(a){return a.status==='open'&&a.target_date&&new Date(a.target_date)<new Date()}
+
+function renderPersonView(list){
+  const el=document.getElementById('actionList');
+  if(!list.length){el.innerHTML='<div class="empty-state"><h2>No actions</h2><p>Nothing assigned to this person yet.</p></div>';return;}
+  el.innerHTML=list.map((a,i)=>actionCard(a)).join('');
+}
+
+function renderRobView(list){
+  const el=document.getElementById('actionList');
+  const byPerson={};
+  list.forEach(a=>{if(!byPerson[a.person])byPerson[a.person]=[];byPerson[a.person].push(a);});
+  let html='<div class="rob-view">';
+  Object.keys(byPerson).sort().forEach(p=>{
+    const items=byPerson[p];
+    const open=items.filter(x=>x.status==='open').length;
+    const overdue=items.filter(x=>isOverdue(x)).length;
+    html+=`<div class="rob-section"><h2>${p} <span class="badge badge-open">${open} open</span> ${overdue?'<span class="badge badge-overdue">'+overdue+' overdue</span>':''}</h2>`;
+    html+=items.map(a=>actionCard(a)).join('');
+    html+='</div>';
+  });
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+function actionCard(a){
+  const od=isOverdue(a);
+  const cls=a.status+(od?' overdue':'');
+  const targetVal=a.target_date||'';
+  const statusOpts=['open','done','blocked'].map(s=>`<option value="${s}"${a.status===s?' selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
+  return `<div class="action-card ${cls}" id="card-${a.id}">
+    <div class="action-top">
+      <span class="action-num">${a.sort_order}.</span>
+      <div style="flex:1">
+        <div class="action-desc">${a.description}</div>
+        <div class="action-meta">Source: ${a.source_meeting||'—'} &nbsp;|&nbsp; Raised: ${fmtDate(a.date_raised)}</div>
+      </div>
+      <span class="badge badge-${a.status}">${a.status.toUpperCase()}</span>
+    </div>
+    <div class="action-controls">
+      <label>Status</label>
+      <select onchange="updateField('${a.id}','status',this.value)">${statusOpts}</select>
+      <label style="margin-left:12px">Target Date</label>
+      <input type="date" value="${targetVal}" onchange="updateField('${a.id}','target_date',this.value)">
+    </div>
+    <div class="comment-row">
+      <input type="text" placeholder="Add a comment or update..." value="${a.comment||''}" onchange="updateField('${a.id}','comment',this.value)">
+    </div>
+  </div>`;
+}
+
+function fmtDate(d){if(!d)return '—';const dt=new Date(d);return dt.toLocaleDateString('en-AU',{day:'2-digit',month:'2-digit',year:'numeric'})}
+
+function updateField(id,field,val){
+  const a=actions.find(x=>x.id===id);
+  if(!a)return;
+  a[field]=val||null;
+  if(field==='status'&&val==='done')a.completed_date=new Date().toISOString().slice(0,10);
+  if(field==='status'&&val!=='done')a.completed_date=null;
+  a.updated_at=new Date().toISOString();
+  dirty.add(id);
+  document.getElementById('saveBtn').disabled=false;
+  setSync('dirty',dirty.size+' unsaved change'+(dirty.size>1?'s':''));
+  // Re-render card in place
+  const card=document.getElementById('card-'+id);
+  if(card){const tmp=document.createElement('div');tmp.innerHTML=actionCard(a);card.replaceWith(tmp.firstElementChild);}
+  renderStats(currentPerson==='__ALL__'?actions:actions.filter(x=>x.person===currentPerson));
+}
+
+async function saveAll(){
+  if(!dirty.size)return;
+  const btn=document.getElementById('saveBtn');
+  btn.disabled=true;btn.textContent='Saving...';
+  try{
+    const updates=actions.filter(a=>dirty.has(a.id)).map(a=>({
+      id:a.id,status:a.status,comment:a.comment,target_date:a.target_date,
+      completed_date:a.completed_date,updated_at:a.updated_at
+    }));
+    for(const u of updates){
+      const{error}=await sb.from('action_tracker').update(u).eq('id',u.id);
+      if(error)throw error;
+    }
+    dirty.clear();
+    setSync('ok','All changes saved');
+    btn.textContent='Save Changes';
+  }catch(e){
+    console.error(e);
+    setSync('err','Save failed: '+e.message);
+    btn.disabled=false;btn.textContent='Save Changes';
+  }
+}
+
+function setSync(type,msg){
+  const el=document.getElementById('syncStatus');
+  el.className='sync-status sync-'+type;
+  el.textContent=msg;
+}
+
+loadAll();
+</script>
+</body>
+</html>
